@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up</title>
+</head>
+<body>
+    <h1>Sign Up</h1>
+    <form id="signupForm" method="post">
+        {% csrf_token %}
+        <input type="text" name="username" placeholder="Username" required><br>
+        <input type="text" name="firstname" placeholder="First Name" required><br>
+        <input type="text" name="lastname" placeholder="Last Name" required><br>
+        <input type="text" name="cardID" placeholder="Card ID" required><br>
+        <input type="file" id="fileInput" name="file" required><br> <!-- Input for image or file -->
+        <button type="submit">Sign Up</button>
+    </form>
+
+    
+    <script>
+        document.getElementById('signupForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            let fileInput = document.getElementById('fileInput');
+            let file = fileInput.files[0]; // Get the selected file
+
+            // Check if a file is selected
+            if (!file) {
+                alert('Please select a file.');
+                return;
+            }
+
+            let formData = new FormData(this);
+            formData.append('file', file); // Append the file to form data
+
+            // Send form data to server for traditional registration
+            fetch('/sign-up', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Initiate WebAuthn registration
+                    navigator.credentials.create({
+                        publicKey: data.webauthn_options
+                    })
+                    .then(credential => {
+                        // Send WebAuthn credential to server for verification
+                        fetch('/complete-sign-up', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                credential: credential,
+                                csrfmiddlewaretoken: "{{ csrf_token }}"
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert('Sign Up successful!');
+                            } else {
+                                alert('Sign Up failed!');
+                            }
+                        });
+                    })
+                    .catch(error => console.error(error));
+                } else {
+                    alert('Sign Up failed!');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
